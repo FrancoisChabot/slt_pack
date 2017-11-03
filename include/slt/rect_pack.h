@@ -6,11 +6,10 @@
 namespace slt {
   // This is an open-ended incremental rect packer.
   //
-  // For optimial results, you should sort the list of rectangles to pack
+  // For optimal results, you should sort the list of rectangles to pack
   // before hand, but this is not a hard requirement. If using std::sort, 
   // you should use std::greater<> as the comparator. 
-  //
-  template<typename T>
+  template<typename T, typename Alloc=std::allocator<char>>
   class RectPacker2D {
   public:
     struct RectSize {
@@ -29,11 +28,9 @@ namespace slt {
       T height;
     };
 
-    inline RectPacker2D(RectSize bin_size);
-
+    inline explicit RectPacker2D(RectSize bin_size, Alloc const& alloc = Alloc());
     inline Result pack(RectSize rect);
  
-
   private:
     inline T getScore(RectSize const& src, RectSize const& dst) const;
 
@@ -46,16 +43,18 @@ namespace slt {
       RectSize size;
     };
 
-    std::vector<FreeRect> free_rects_;
+    using FreeRectAllocator = typename Alloc::template rebind<FreeRect>::other;
+    std::vector<FreeRect, FreeRectAllocator> free_rects_;
   };
 
-  template<typename T>
-  RectPacker2D<T>::RectPacker2D(RectSize bin_size) {
+  template<typename T, typename Alloc>
+  RectPacker2D<T, Alloc>::RectPacker2D(RectSize bin_size, Alloc const& alloc)
+    : free_rects_(alloc) {
     free_rects_.emplace_back(FreeRect{T(0), T(0), bin_size.width, bin_size.height});
   }
 
-  template<typename T>
-  typename RectPacker2D<T>::Result RectPacker2D<T>::pack(RectSize rect) {
+  template<typename T, typename Alloc>
+  typename RectPacker2D<T, Alloc>::Result RectPacker2D<T, Alloc>::pack(RectSize rect) {
 
     RectSize flipped_rect = {
       rect.height,
@@ -175,8 +174,8 @@ namespace slt {
     };
   }
 
-  template<typename T>
-  T RectPacker2D<T>::getScore(RectSize const& src, RectSize const& dst) const {
+  template<typename T, typename Alloc>
+  T RectPacker2D<T, Alloc>::getScore(RectSize const& src, RectSize const& dst) const {
 
     if (src.width > dst.width || src.height > dst.height) {
       // doesn't fit
@@ -192,9 +191,6 @@ namespace slt {
     }
 
     return std::min(rem_width, rem_height);
-
   }
-
 }
-
 #endif
