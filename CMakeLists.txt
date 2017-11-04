@@ -3,13 +3,13 @@ cmake_minimum_required(VERSION 3.1)
 project(slt_pack)
 
 if(MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++14 /W4 /wd4127")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17 /W4 /wd4127")
   set(gtest_force_shared_crt ON CACHE BOOL "Always use msvcrt.dll" FORCE)
   
   #Gtest workaround for MSVC2017
   add_definitions(-DGTEST_LANG_CXX11)
 else()
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -Wextra -std=c++14 -ftemplate-backtrace-limit=0")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -Wextra -std=c++17 -ftemplate-backtrace-limit=0")
 endif(MSVC)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
