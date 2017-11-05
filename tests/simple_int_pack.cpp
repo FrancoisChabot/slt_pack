@@ -122,7 +122,6 @@ TEST(slt_rect_pack, pretty_print) {
 
   char c = 'A';
   for (auto const & d : data) {
-    std::cout << "BEGIN INSERTION FOR: " << c << " " << d[0] <<'-'<<d[1]<<  "\n";
     packer_t::Result packed;
     packer.pack(d, packed);
     auto size = d;

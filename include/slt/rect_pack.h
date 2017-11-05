@@ -6,7 +6,6 @@
 #include <vector>
 #include <cassert>
 #include <tuple>
-#include <iostream>
 
 namespace slt {
 
@@ -60,8 +59,6 @@ namespace slt {
       const Dist rem_w = destination.size[0] - rect[0];
       const Dist rem_h = destination.size[1] - rect[1];
 
-      std::cout << "creation phase\n";
-
       bool right_added = addFreeRect(
         { destination.pos[0] + rect[0], destination.pos[1] },
         { rem_w, destination.size[1] }
@@ -74,12 +71,9 @@ namespace slt {
       
       //If both insertions were successful, bind them together.
       if (right_added && bottom_added) {
-        std::cout << "binding\n";
         std::prev(free_rects_.end())->counterpart = free_rects_.size() - 2;
         std::prev(free_rects_.end(), 2)->counterpart = free_rects_.size() - 1;
       }
-
-      std::cout << "creation phase done\n";
 
       result.pos = destination.pos;
       result.flipped = flipped;
@@ -92,8 +86,6 @@ namespace slt {
     bool addFreeRect(Vec const& pos, Vec const& size) {
       if (size[0] > Dist(0) && size[1] > Dist(0)) {
         free_rects_.emplace_back(FreeRect{ pos, size });
-
-        std::cout << "Added: " << pos[0] << '-' << pos[1] << " -> " << (pos[0] + size[0]) << '-' << (pos[1] + size[1]) << std::endl;
         return true;
       }
       return false;
