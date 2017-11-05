@@ -6,25 +6,32 @@
 
 TEST(slt_rect_pack, basic_api) {
   slt::RectPacker2D<int> packer({ 12, 12 });
+  slt::RectPacker2D<int>::Result result;
+  bool success = packer.pack({ 2, 2 }, result);
   
-  auto result = packer.pack({ 2, 2 });
-  EXPECT_EQ(0, result->pos[0]);
-  EXPECT_EQ(0, result->pos[1]);
+  EXPECT_TRUE(success);
+  EXPECT_EQ(0, result.pos[0]);
+  EXPECT_EQ(0, result.pos[1]);
+  EXPECT_FALSE(result.flipped);
 }
 
 TEST(slt_rect_pack, snug_fit) {
   slt::RectPacker2D<int> packer({ 12,12 });
+  slt::RectPacker2D<int>::Result result;
+  bool success= packer.pack({ 12, 12 }, result);
 
-  auto result = packer.pack({ 12, 12 });
-  EXPECT_EQ(0, result->pos[0]);
-  EXPECT_EQ(0, result->pos[1]);
+  EXPECT_TRUE(success);
+  EXPECT_EQ(0, result.pos[0]);
+  EXPECT_EQ(0, result.pos[1]);
+  EXPECT_FALSE(result.flipped);
 }
 
 TEST(slt_rect_pack, trivial_failure) {
   slt::RectPacker2D<int> packer({ 12,12 });
 
-  auto result = packer.pack({ 13, 13 });
-  EXPECT_FALSE(result);
+  slt::RectPacker2D<int>::Result result;
+  bool success = packer.pack({ 13, 13 }, result);
+  EXPECT_FALSE(success);
 }
 
 TEST(slt_rect_pack, full_fill) {
@@ -32,13 +39,17 @@ TEST(slt_rect_pack, full_fill) {
 
   bool matrix[5][5] = { false };
   for (int i = 0; i < 5 * 5; ++i) {
-    auto result = packer.pack({ 1, 1 });
-    EXPECT_FALSE(matrix[result->pos[0]][result->pos[1]]);
-    matrix[result->pos[0]][result->pos[1]] = true;
+    slt::RectPacker2D<int>::Result result;
+    bool success = packer.pack({ 1, 1 }, result);
+    EXPECT_TRUE(success);
+    EXPECT_FALSE(matrix[result.pos[0]][result.pos[1]]);
+    matrix[result.pos[0]][result.pos[1]] = true;
   }
+
+  slt::RectPacker2D<int>::Result result;
   //we should be full now
-  auto result = packer.pack({ 1, 1 });
-  EXPECT_FALSE(result);
+  bool success = packer.pack({ 1, 1 }, result);
+  EXPECT_FALSE(success);
 }
 
 
@@ -78,11 +89,11 @@ TEST(slt_rect_pack, custom_allocator) {
   MyAlloc<char> alloc;
   {
     slt::RectPacker2D<int, MyAlloc<char>> packer({ 12,12 }, alloc);
+    slt::RectPacker2D<int, MyAlloc<char>>::Result result;
 
-    auto result = packer.pack({ 12, 12 });
+    bool success = packer.pack({ 12, 12 }, result);
     EXPECT_EQ(2, MyAllocCount);
-    EXPECT_EQ(0, result->pos[0]);
-    EXPECT_EQ(0, result->pos[1]);
+    EXPECT_TRUE(success);
   }
 
   EXPECT_EQ(0, MyAllocCount);
@@ -111,13 +122,15 @@ TEST(slt_rect_pack, pretty_print) {
 
   char c = 'A';
   for (auto const & d : data) {
-    auto packed = packer.pack(d);
+    std::cout << "BEGIN INSERTION FOR: " << c << " " << d[0] <<'-'<<d[1]<<  "\n";
+    packer_t::Result packed;
+    packer.pack(d, packed);
     auto size = d;
-    if (packed->flipped) {
+    if (packed.flipped) {
       std::swap(size[0], size[1]);
     }
-    for (int i = packed->pos[0]; i < packed->pos[0] + size[0]; ++i) {
-      for (int j = packed->pos[1]; j < packed->pos[1] + size[1]; ++j) {
+    for (int i = packed.pos[0]; i < packed.pos[0] + size[0]; ++i) {
+      for (int j = packed.pos[1]; j < packed.pos[1] + size[1]; ++j) {
         if (result.size() < j + 1) {
           result.resize(j+1, std::vector<char>(80, ' '));
         }

@@ -5,28 +5,28 @@
 #include <limits>
 #include <vector>
 #include <cassert>
-#include <optional>
 #include <tuple>
+#include <iostream>
 
 namespace slt {
 
   // Default scorer: fits the rect as snuggly as possible in a dimension
   // Note: lower means better.
-  template<typename T>
-  T DefaultRectScorer(std::array<T, 2> const& src, std::array<T, 2> const& dst) {
+  template<typename Dist>
+  Dist DefaultRectScorer(std::array<Dist, 2> const& src, std::array<Dist, 2> const& dst) {
     return std::max(dst[0] - src[0], dst[1] - src[1]);
   }
 
-  // This is an open-ended incremental rect packer.
+  // This is a simple incremental rect packer.
   //
   // For optimal results, you should sort the list of rectangles to pack
   // beforehand, but this is not a hard requirement.
   //
   // If using a custom allocator, it has to be rebindable.
-  template<typename T, typename Alloc = std::allocator<char>>
+  template<typename Dist, typename Alloc = std::allocator<char>>
   class RectPacker2D {
   public:
-    using Vec = std::array<T, 2>;
+    using Vec = std::array<Dist, 2>;
     struct Result {
       Vec pos;
       bool flipped;
@@ -34,29 +34,33 @@ namespace slt {
 
     explicit RectPacker2D(Vec bin_size, Alloc const& alloc = Alloc())
       : free_rects_(alloc) {
-      free_rects_.emplace_back(FreeRect{ {T(0), T(0)}, bin_size });
+      addFreeRect({ Dist(0), Dist(0) }, bin_size);
     }
 
     // Tries to pack a rect of size `rect`.
-    template<typename RectScorer = decltype(DefaultRectScorer<T>)>
-    std::optional<Result> pack(Vec rect, RectScorer scorer = DefaultRectScorer<T>) {
+    template<typename RectScorer = decltype(DefaultRectScorer<Dist>)>
+    bool pack(Vec rect, Result& result, RectScorer scorer = DefaultRectScorer<Dist>) {
       //1. Chose where to store the rect
       FreeRectIte chosen_slot; 
       bool flipped;
       std::tie(chosen_slot, flipped) = chooseSlot(rect, scorer);
 
       if (chosen_slot == free_rects_.end()) {
-        return std::nullopt;
+        return false;
       }
       FreeRect destination = *chosen_slot;
-
+      if(flipped) {
+        std::swap(rect[0], rect[1]);
+      }
       //2. remove the chosen rect from the free list
       removeFreeRect(chosen_slot);
       //N.B. chosen_slot is an invalid iterator past this spot
 
       //3. add the remainders to the free list
-      const T rem_w = destination.size[0] - rect[0];
-      const T rem_h = destination.size[1] - rect[1];
+      const Dist rem_w = destination.size[0] - rect[0];
+      const Dist rem_h = destination.size[1] - rect[1];
+
+      std::cout << "creation phase\n";
 
       bool right_added = addFreeRect(
         { destination.pos[0] + rect[0], destination.pos[1] },
@@ -70,21 +74,26 @@ namespace slt {
       
       //If both insertions were successful, bind them together.
       if (right_added && bottom_added) {
+        std::cout << "binding\n";
         std::prev(free_rects_.end())->counterpart = free_rects_.size() - 2;
         std::prev(free_rects_.end(), 2)->counterpart = free_rects_.size() - 1;
       }
 
-      return Result{
-        {destination.pos[0], destination.pos[1]},
-        flipped
-      };
+      std::cout << "creation phase done\n";
+
+      result.pos = destination.pos;
+      result.flipped = flipped;
+
+      return true;
     }
 
     // If calling this, you are responsible for ensure it does not overlap with any
     // other existing free rect. returns wether insertion was successfull.
     bool addFreeRect(Vec const& pos, Vec const& size) {
-      if (size[0] > T(0) && size[1] > T(0)) {
+      if (size[0] > Dist(0) && size[1] > Dist(0)) {
         free_rects_.emplace_back(FreeRect{ pos, size });
+
+        std::cout << "Added: " << pos[0] << '-' << pos[1] << " -> " << (pos[0] + size[0]) << '-' << (pos[1] + size[1]) << std::endl;
         return true;
       }
       return false;
@@ -106,19 +115,18 @@ namespace slt {
       typename std::vector<FreeRect>::difference_type counterpart = -1;
     };
 
-    //using FreeRectAllocator = typename Alloc::template rebind<FreeRect>::other;
     using FreeRectAllocator = typename std::allocator_traits<Alloc>::template rebind_alloc<FreeRect>;
     using FreeRectCollection = std::vector<FreeRect, FreeRectAllocator>;
     using FreeRectIte = typename FreeRectCollection::iterator;
 
     template<typename RectScorer>
     std::tuple<FreeRectIte, bool> chooseSlot(Vec const& rect, RectScorer scorer) {
-      const T non_fit_score = std::numeric_limits<T>::max();
+      const Dist non_fit_score = std::numeric_limits<Dist>::max();
 
       Vec flipped_rect = { rect[1], rect[0] };
 
       // 1. Identify where we will store the rect.
-      T best_score = non_fit_score;
+      Dist best_score = non_fit_score;
       auto best_rect = free_rects_.end();
       bool flip = false;
 
@@ -136,8 +144,8 @@ namespace slt {
           break;
         }
 
-        T score = fits(rect, ite->size) ? scorer(rect, ite->size) : non_fit_score;
-        T flipped_score = fits(flipped_rect, ite->size) ? scorer(flipped_rect, ite->size) : non_fit_score;
+        Dist score = fits(rect, ite->size) ? scorer(rect, ite->size) : non_fit_score;
+        Dist flipped_score = fits(flipped_rect, ite->size) ? scorer(flipped_rect, ite->size) : non_fit_score;
 
         if (score < best_score) {
           best_rect = ite;
@@ -189,7 +197,6 @@ namespace slt {
     }
 
     FreeRectCollection free_rects_;
-
   };
 }
 #endif
